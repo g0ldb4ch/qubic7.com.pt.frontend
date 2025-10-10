@@ -77,11 +77,18 @@
 <script setup>
 import { ref } from 'vue';
 
-defineProps({
-  show: Boolean
+
+import { watch } from 'vue';
+
+const props = defineProps({
+  show: Boolean,
+  tech: Object
 });
 
+
 const emit = defineEmits(['close', 'submit']);
+const isEdit = ref(false);
+
 
 const formData = ref({
   technology: '',
@@ -98,6 +105,22 @@ const resetForm = () => {
     notes: ''
   };
 };
+
+watch(() => props.tech, (newTech) => {
+  if (newTech) {
+    isEdit.value = true;
+    formData.value = {
+      technology: newTech.technology || '',
+      version: newTech.version || '',
+      category: newTech.category || 'other',
+      notes: newTech.notes || ''
+    };
+  } else {
+    isEdit.value = false;
+    resetForm();
+  }
+}, { immediate: true });
+
 
 const close = () => {
   emit('close');

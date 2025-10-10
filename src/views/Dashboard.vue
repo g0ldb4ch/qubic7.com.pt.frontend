@@ -1,3 +1,4 @@
+
 <template>
   <div>
     <div class="flex justify-between items-center mb-8">
@@ -32,13 +33,15 @@
 
     <!-- Projects Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <ProjectCard
-        v-for="project in projectsStore.projects"
-        :key="project._id"
-        :project="project"
-        @edit="editProject"
-        @delete="confirmDelete"
-      />
+        <ProjectCard
+          v-for="project in projectsWithStats"
+          :key="project._id"
+          :project="project"
+          :tech-count="project.techCount"
+          :vuln-count="project.vulnCount"
+          @edit="editProject"
+          @delete="confirmDelete"
+        />
     </div>
 
     <!-- Project Modal -->
@@ -74,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useProjectsStore } from '@/stores/projects';
 import ProjectCard from '@/components/ProjectCard.vue';
 import ProjectModal from '@/components/ProjectModal.vue';
@@ -89,6 +92,21 @@ const projectToDelete = ref(null);
 onMounted(() => {
   projectsStore.fetchProjects();
   console.log('Progetti caricati:', projectsStore.projects);
+});
+
+// Calcola i conteggi tech/vuln per ogni progetto
+const projectsWithStats = computed(() => {
+  return projectsStore.projects.map(project => {
+    // Trova tutti i subdomains di questo progetto
+    const subdomains = projectsStore.subdomains?.filter?.(s => s.projectId === project._id) || [];
+    let techCount = 0;
+    let vulnCount = 0;
+    for (const sub of subdomains) {
+      techCount += Array.isArray(sub.techStack) ? sub.techStack.length : 0;
+      vulnCount += Array.isArray(sub.vulnerabilities) ? sub.vulnerabilities.length : 0;
+    }
+    return { ...project, techCount, vulnCount };
+  });
 });
 
 const editProject = (project) => {

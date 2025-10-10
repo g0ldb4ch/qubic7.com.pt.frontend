@@ -60,7 +60,8 @@
           <div 
             v-for="tech in techStacks" 
             :key="tech._id"
-            class="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+            class="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+            @click="editTech(tech)"
           >
             <div>
               <p class="font-semibold text-gray-900">{{ tech.technology }}</p>
@@ -70,7 +71,7 @@
               </p>
             </div>
             <button 
-              @click="deleteTech(tech._id)"
+              @click.stop="deleteTech(tech._id)"
               class="text-red-600 hover:text-red-800"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,9 +86,15 @@
       <div class="card">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-2xl font-bold">Vulnerabilità</h2>
-          <button @click="showVulnModal = true" class="btn-primary text-sm">
-            + Aggiungi
-          </button>
+          <div class="flex gap-2">
+            <button @click="showVulnModal = true" class="btn-primary text-sm">
+              + Aggiungi
+            </button>
+            <label class="btn-secondary text-sm cursor-pointer">
+              Importa JSON
+              <input type="file" accept="application/json" class="hidden" @change="handleImportJson" />
+            </label>
+          </div>
         </div>
 
         <!-- Filters -->
@@ -162,7 +169,8 @@
     <!-- Modals -->
     <TechStackModal
       :show="showTechStackModal"
-      @close="showTechStackModal = false"
+      :tech="selectedTech"
+      @close="closeTechStackModal"
       @submit="handleTechStackSubmit"
     />
 
@@ -187,10 +195,41 @@ import SeverityBadge from '@/components/SeverityBadge.vue';
 import TechStackModal from '@/components/TechStackModal.vue';
 import VulnerabilityModal from '@/components/VulnerabilityModal.vue';
 
+// Importazione JSON
+const handleImportJson = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error('Il file JSON deve essere un array.');
+    for (const vuln of data) {
+      // Mappatura struttura custom -> vulnerabilità del sistema
+      const mapped = {
+        title: vuln.info?.name || vuln["template-id"] || 'Vulnerabilità',
+        description: vuln.info?.description || '',
+        severity: vuln.info?.severity || 'medium',
+        status: 'open',
+        cvss: null,
+        cve: '',
+        proof: '',
+        remediation: '',
+        affectedUrl: vuln["matched-at"] || vuln.host || '',
+        impact: '',
+      };
+      await handleVulnSubmit(mapped);
+    }
+    alert('Importazione completata!');
+  } catch (e) {
+    alert('Errore importazione JSON: ' + e.message);
+  }
+};
+
 const route = useRoute();
 const subdomainsStore = useSubdomainsStore();
 
 const showTechStackModal = ref(false);
+const selectedTech = ref(null);
 const showVulnModal = ref(false);
 const selectedVulnerability = ref(null);
 const loading = ref(true);
@@ -235,11 +274,27 @@ onMounted(async () => {
 
 const handleTechStackSubmit = async (techData) => {
   try {
-    await subdomainsStore.addTechStack(route.params.id, techData);
+    if (selectedTech.value) {
+      await subdomainsStore.updateTechStack(selectedTech.value._id, techData);
+    } else {
+      await subdomainsStore.addTechStack(route.params.id, techData);
+    }
   } catch (error) {
-    console.error('Errore aggiunta tecnologia:', error);
-    alert('Errore nell\'aggiunta della tecnologia');
+    console.error('Errore aggiunta/modifica tecnologia:', error);
+    alert('Errore nell\'aggiunta o modifica della tecnologia');
+  } finally {
+    selectedTech.value = null;
   }
+};
+
+const editTech = (tech) => {
+  selectedTech.value = tech;
+  showTechStackModal.value = true;
+};
+
+const closeTechStackModal = () => {
+  showTechStackModal.value = false;
+  selectedTech.value = null;
 };
 
 const deleteTech = async (techId) => {

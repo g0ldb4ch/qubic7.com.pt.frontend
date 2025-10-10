@@ -1,44 +1,55 @@
 <template>
-  <div class="card hover:shadow-lg transition-shadow cursor-pointer" @click="goToProject">
-    <div class="flex justify-between items-start mb-4">
-      <div>
-        <h3 class="text-xl font-bold text-gray-900">{{ project.name }}</h3>
-        <p class="text-sm text-gray-500 mt-1">{{ project.domain }}</p>
-      </div>
-      <span 
-        class="px-3 py-1 rounded-full text-xs font-semibold"
-        :class="statusClasses"
-      >
-        {{ statusLabel }}
-      </span>
-    </div>
+      <div class="card hover:shadow-lg transition-shadow cursor-pointer" @click="goToProject">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 class="text-xl font-bold text-gray-900">{{ project.name }}</h3>
+            <p class="text-sm text-gray-500 mt-1">{{ project.domain }}</p>
+          </div>
+          <span 
+            class="px-3 py-1 rounded-full text-xs font-semibold"
+            :class="statusClasses"
+          >
+            {{ statusLabel }}
+          </span>
+        </div>
 
-    <div class="space-y-2 text-sm text-gray-600">
-      <div class="flex items-center">
-        <span class="font-medium">Cliente:</span>
-        <span class="ml-2">{{ project.client }}</span>
-      </div>
-      <div class="flex items-center">
-        <span class="font-medium">Data inizio:</span>
-        <span class="ml-2">{{ formatDate(project.startDate) }}</span>
-      </div>
-    </div>
+        <div class="space-y-2 text-sm text-gray-600">
+          <div class="flex items-center">
+            <span class="font-medium">Cliente:</span>
+            <span class="ml-2">{{ project.client }}</span>
+          </div>
+          <div class="flex items-center">
+            <span class="font-medium">Data inizio:</span>
+            <span class="ml-2">{{ formatDate(project.startDate) }}</span>
+          </div>
+        </div>
 
-    <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
-      <button 
-        @click.stop="$emit('edit', project)"
-        class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-      >
-        Modifica
-      </button>
-      <button 
-        @click.stop="$emit('delete', project._id)"
-        class="text-red-600 hover:text-red-800 text-sm font-medium"
-      >
-        Elimina
-      </button>
-    </div>
-  </div>
+        <!-- Tag Tech/Vuln e pulsanti -->
+        <div class="mt-4 pt-4 border-t border-gray-200 flex flex-col gap-2">
+          <div class="flex gap-3 mb-2">
+            <span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
+              🧩 Tech: {{ techCount ?? 0 }}
+            </span>
+            <span class="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-semibold">
+              🛡️ Vuln: {{ vulnCount ?? 0 }}
+            </span>
+          </div>
+          <div class="flex justify-between items-center">
+            <button 
+              @click.stop="$emit('edit', project)"
+              class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              Modifica
+            </button>
+            <button 
+              @click.stop="$emit('delete', project._id)"
+              class="text-red-600 hover:text-red-800 text-sm font-medium"
+            >
+              Elimina
+            </button>
+          </div>
+        </div>
+      </div>
 </template>
 
 <script setup>
@@ -49,6 +60,14 @@ const props = defineProps({
   project: {
     type: Object,
     required: true
+  },
+  techCount: {
+    type: Number,
+    default: 0
+  },
+  vulnCount: {
+    type: Number,
+    default: 0
   }
 });
 
