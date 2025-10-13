@@ -1,26 +1,41 @@
 <template>
   <div v-if="subdomain">
     <!-- Header -->
-    <div class="mb-8">      
-      <div>
-        <div class="flex items-center text-sm text-gray-500 mb-3">
-          <router-link 
-            :to="`/projects/${subdomain.projectId._id}`"
-            class="hover:text-blue-600 transition-colors"
-          >
-            {{ subdomain.projectId.name }}
-          </router-link>
-          <svg class="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-          <span class="text-gray-900 font-medium">{{ subdomain.subdomain }}</span>
-        </div>
-        <h1 class="text-3xl font-bold text-gray-900">{{ subdomain.subdomain }}</h1>
-        <p v-if="subdomain.ipAddress" class="text-sm text-gray-600 mt-2">
-          IP: {{ subdomain.ipAddress }}
-        </p>
+<div class="mb-8">
+  <div class="flex justify-between items-start">
+    <!-- Parte sinistra: Informazioni subdominio -->
+    <div>
+      <div class="flex items-center text-sm text-gray-500 mb-3">
+        <router-link 
+          :to="`/projects/${subdomain.projectId._id}`"
+          class="hover:text-blue-600 transition-colors"
+        >
+          {{ subdomain.projectId.name }}
+        </router-link>
+        <svg class="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+        <span class="text-gray-900 font-medium">{{ subdomain.subdomain }}</span>
       </div>
+      <h1 class="text-3xl font-bold text-gray-900">{{ subdomain.subdomain }}</h1>
+      <p v-if="subdomain.ipAddress" class="text-sm text-gray-600 mt-2">
+        IP: {{ subdomain.ipAddress }}
+      </p>
     </div>
+
+    <!-- Parte destra: Pulsanti -->
+    <div class="flex gap-2 mt-2">
+      <!-- Esporta per n8n -->
+      <button @click="exportSubdomain" class="btn-primary">📥 Esporta per n8n</button>
+
+      <!-- Importa JSON -->
+      <label class="btn-secondary cursor-pointer">
+        📊 Importa Scansione Nuclei
+        <input type="file" accept="application/json" class="hidden" @change="handleImportJson" />
+      </label>
+    </div>
+  </div>
+</div>
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -199,29 +214,60 @@ import VulnerabilityModal from '@/components/VulnerabilityModal.vue';
 const handleImportJson = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
+
   try {
     const text = await file.text();
     const data = JSON.parse(text);
+
     if (!Array.isArray(data)) throw new Error('Il file JSON deve essere un array.');
-    for (const vuln of data) {
-      // Mappatura struttura custom -> vulnerabilità del sistema
-      const mapped = {
-        title: vuln.info?.name || vuln["template-id"] || 'Vulnerabilità',
-        description: vuln.info?.description || '',
-        severity: vuln.info?.severity || 'medium',
+
+    const techSet = new Set(); // Per evitare duplicati
+
+    for (const item of data) {
+      // ----------- Vulnerabilità ------------
+      const vuln = {
+        title: item.info?.name || item["template-id"] || 'Vulnerabilità',
+        description: item.info?.description || '',
+        severity: item.info?.severity?.toLowerCase() || 'medium',
         status: 'open',
         cvss: null,
-        cve: '',
+        cve: Array.isArray(item.info?.cve) ? item.info.cve.join(', ') : item.info?.cve || '',
         proof: '',
         remediation: '',
-        affectedUrl: vuln["matched-at"] || vuln.host || '',
+        affectedUrl: item["matched-at"] || item.host || '',
         impact: '',
       };
-      await handleVulnSubmit(mapped);
+
+      await handleVulnSubmit(vuln);
+
+      // ----------- Stack Tecnologico ------------
+      const tags = item.info?.tags;
+      if (tags) {
+        const list = typeof tags === 'string' ? tags.split(',') : tags;
+        for (const raw of list) {
+          const techName = raw.trim();
+          if (!techName) continue;
+
+          const key = techName.toLowerCase();
+          if (techSet.has(key)) continue;
+
+          techSet.add(key);
+
+          const tech = {
+            technology: techName,
+            version: null,
+            category: 'web', // Puoi migliorare la categorizzazione se vuoi
+          };
+
+          await subdomainsStore.addTechStack(route.params.id, tech);
+        }
+      }
     }
+
     alert('Importazione completata!');
   } catch (e) {
-    alert('Errore importazione JSON: ' + e.message);
+    console.error(e);
+    alert('Errore durante l\'importazione: ' + e.message);
   }
 };
 
