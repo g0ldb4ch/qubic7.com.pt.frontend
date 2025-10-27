@@ -178,9 +178,11 @@ const deleteSubdomain = async (subdomainId) => {
 const handleImportJson = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
+
   try {
     const text = await file.text();
     const data = JSON.parse(text);
+
     if (!Array.isArray(data)) throw new Error('Il file JSON deve essere un array.');
 
     for (const entry of data) {
@@ -196,7 +198,8 @@ const handleImportJson = async (event) => {
         ip: entry.ip || '',
         status: entry.status || 'unknown'
       };
-      
+
+      // Creazione del subdomain
       const subdomain = await subdomainsStore.createSubdomain(route.params.id, subdomainData);
       const subId = subdomain?._id || subdomain?.data?._id;
 
@@ -205,27 +208,39 @@ const handleImportJson = async (event) => {
         continue;
       }
 
-      // Se vuoi aggiungere informazioni aggiuntive basate sullo status
-      if (entry.status === 'active' && entry.ip && entry.ip !== 'N/A') {
-        // Puoi aggiungere qui note automatiche per subdomain attivi
-        await subdomainsStore.addNote(subId, {
-          title: 'Subdomain attivo',
-          content: `IP: ${entry.ip}\nStatus: ${entry.status}`,
-          type: 'info'
-        });
-      } else if (entry.status === 'inactive') {
-        await subdomainsStore.addNote(subId, {
-          title: 'Subdomain inattivo',
-          content: 'Nessun IP trovato per questo subdomain',
-          type: 'warning'
-        });
+      // Aggiunta dello stack tecnologico (se presente)
+      if (Array.isArray(entry.stack)) {
+        for (const tech of entry.stack) {
+          await subdomainsStore.addTechStack(subId, { technology: tech });
+        }
       }
 
-      console.log(`Importato: ${cleanHost} - ${entry.ip} - ${entry.status}`);
+      // Aggiunta delle vulnerabilità (se presenti)
+      if (Array.isArray(entry.vulnerabilities)) {
+        for (const vuln of entry.vulnerabilities) {
+          const mapped = {
+            title: vuln.name || vuln["template-id"] || 'Vulnerabilità',
+            description: vuln.description || vuln.info?.description || 'Nessuna descrizione fornita',
+            severity: vuln.severity || 'medium',
+            status: 'open',
+            cvss: null,
+            cve: '',
+            proof: '',
+            remediation: '',
+            affectedUrl: vuln["matched-at"] || entry.host || '',
+            impact: '',
+            timestamp: vuln.timestamp || ''
+          };
+          await subdomainsStore.addVulnerability(subId, mapped);
+        }
+      }
+
+      console.log(`Importato: ${cleanHost} - ${entry.ip || 'N/A'} - ${entry.status || 'unknown'}`);
     }
 
     alert(`Importazione completata! ${data.length} subdomain processati.`);
     await subdomainsStore.fetchSubdomains(route.params.id);
+
   } catch (e) {
     console.error('Errore importazione:', e);
     alert('Errore importazione JSON: ' + e.message);
