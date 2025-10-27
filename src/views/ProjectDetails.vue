@@ -184,42 +184,50 @@ const handleImportJson = async (event) => {
     if (!Array.isArray(data)) throw new Error('Il file JSON deve essere un array.');
 
     for (const entry of data) {
+      // Verifica che l'entry abbia i campi necessari
+      if (!entry.host) {
+        console.warn('Entry senza host:', entry);
+        continue;
+      }
+
       const cleanHost = entry.host.replace(/^https?:\/\//, '');
-      const subdomainData = { subdomain: cleanHost };
+      const subdomainData = { 
+        subdomain: cleanHost,
+        ip: entry.ip || '',
+        status: entry.status || 'unknown'
+      };
+      
       const subdomain = await subdomainsStore.createSubdomain(route.params.id, subdomainData);
       const subId = subdomain?._id || subdomain?.data?._id;
 
-      // Stack tecnologico
-      if (Array.isArray(entry.stack) && subId) {
-        for (const tech of entry.stack) {
-          await subdomainsStore.addTechStack(subId, { technology: tech });
-        }
+      if (!subId) {
+        console.warn('Impossibile creare subdomain:', cleanHost);
+        continue;
       }
 
-      // Vulnerabilità
-      if (Array.isArray(entry.vulnerabilities) && subId) {
-        for (const vuln of entry.vulnerabilities) {
-          const mapped = {
-            title: vuln.name || vuln["template-id"] || 'Vulnerabilità',
-            description: vuln.description || vuln.info?.description || 'Nessuna descrizione fornita',
-            severity: vuln.severity || 'medium',
-            status: 'open',
-            cvss: null,
-            cve: '',
-            proof: '',
-            remediation: '',
-            affectedUrl: vuln["matched-at"] || entry.host || '',
-            impact: '',
-            timestamp: vuln.timestamp || ''
-          };
-          await subdomainsStore.addVulnerability(subId, mapped);
-        }
+      // Se vuoi aggiungere informazioni aggiuntive basate sullo status
+      if (entry.status === 'active' && entry.ip && entry.ip !== 'N/A') {
+        // Puoi aggiungere qui note automatiche per subdomain attivi
+        await subdomainsStore.addNote(subId, {
+          title: 'Subdomain attivo',
+          content: `IP: ${entry.ip}\nStatus: ${entry.status}`,
+          type: 'info'
+        });
+      } else if (entry.status === 'inactive') {
+        await subdomainsStore.addNote(subId, {
+          title: 'Subdomain inattivo',
+          content: 'Nessun IP trovato per questo subdomain',
+          type: 'warning'
+        });
       }
+
+      console.log(`Importato: ${cleanHost} - ${entry.ip} - ${entry.status}`);
     }
 
-    alert('Importazione completata!');
+    alert(`Importazione completata! ${data.length} subdomain processati.`);
     await subdomainsStore.fetchSubdomains(route.params.id);
   } catch (e) {
+    console.error('Errore importazione:', e);
     alert('Errore importazione JSON: ' + e.message);
   }
 };

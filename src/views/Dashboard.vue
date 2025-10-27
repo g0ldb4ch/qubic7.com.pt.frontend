@@ -33,15 +33,16 @@
 
     <!-- Projects Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <ProjectCard
-          v-for="project in projectsWithStats"
-          :key="project._id"
-          :project="project"
-          :tech-count="project.techCount"
-          :vuln-count="project.vulnCount"
-          @edit="editProject"
-          @delete="confirmDelete"
-        />
+      <ProjectCard
+        v-for="project in projectsWithStats"
+        :key="project._id"
+        :project="project"
+        :tech-count="project.techCount"
+        :vuln-count="project.vulnCount"
+        :subdomain-count="project.subdomainCount"
+        @edit="editProject"
+        @delete="confirmDelete"
+      />
     </div>
 
     <!-- Project Modal -->

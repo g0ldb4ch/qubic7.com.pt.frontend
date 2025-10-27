@@ -27,6 +27,9 @@
         <!-- Tag Tech/Vuln e pulsanti -->
         <div class="mt-4 pt-4 border-t border-gray-200 flex flex-col gap-2">
           <div class="flex gap-3 mb-2">
+            <span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
+              🌐 Sub: {{ subdomainCount ?? 0 }}
+            </span>
             <span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
               🧩 Tech: {{ techCount ?? 0 }}
             </span>
@@ -66,6 +69,10 @@ const props = defineProps({
     default: 0
   },
   vulnCount: {
+    type: Number,
+    default: 0
+  },
+  subdomainCount: {
     type: Number,
     default: 0
   }
