@@ -80,10 +80,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useProjectsStore } from '@/stores/projects';
+import { useSubdomainsStore } from '@/stores/subdomains';
 import ProjectCard from '@/components/ProjectCard.vue';
 import ProjectModal from '@/components/ProjectModal.vue';
 
 const projectsStore = useProjectsStore();
+const subdomainsStore = useSubdomainsStore();
 
 const showProjectModal = ref(false);
 const selectedProject = ref(null);
@@ -91,22 +93,36 @@ const showDeleteConfirm = ref(false);
 const projectToDelete = ref(null);
 
 onMounted(() => {
-  projectsStore.fetchProjects();
-  console.log('Progetti caricati:', projectsStore.projects);
+  (async () => {
+    try {
+      await projectsStore.fetchProjects();
+      // Dopo aver caricato i progetti, fetcha tutti i subdomains per mostrare i conteggi in Dashboard
+      const ids = projectsStore.projects.map(p => p._id);
+      if (ids.length) {
+        await subdomainsStore.fetchAllSubdomains(ids);
+      }
+      console.log('Progetti caricati:', projectsStore.projects);
+    } catch (e) {
+      console.error('Errore caricamento progetti o sottodomini:', e);
+    }
+  })();
 });
 
 // Calcola i conteggi tech/vuln per ogni progetto
 const projectsWithStats = computed(() => {
-  return projectsStore.projects.map(project => {
-    // Trova tutti i subdomains di questo progetto
-    const subdomains = projectsStore.subdomains?.filter?.(s => s.projectId === project._id) || [];
+    return projectsStore.projects.map(project => {
+  // Trova tutti i subdomains di questo progetto
+  const subdomains = subdomainsStore.subdomains?.filter?.(s => s.projectId === project._id) || [];
+
     let techCount = 0;
     let vulnCount = 0;
     for (const sub of subdomains) {
       techCount += Array.isArray(sub.techStack) ? sub.techStack.length : 0;
       vulnCount += Array.isArray(sub.vulnerabilities) ? sub.vulnerabilities.length : 0;
-    }
-    return { ...project, techCount, vulnCount };
+    }    
+
+    // Passa anche il conteggio dei subdomains al ProjectCard
+    return { ...project, techCount, vulnCount, subdomainCount: subdomains.length };
   });
 });
 

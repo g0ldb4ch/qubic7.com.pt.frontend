@@ -206,6 +206,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useSubdomainsStore } from '@/stores/subdomains';
+import { useSubdomainTechsStore } from '@/stores/subdomainTechs';
+import { useSubdomainVulnsStore } from '@/stores/subdomainVulns';
 import SeverityBadge from '@/components/SeverityBadge.vue';
 import TechStackModal from '@/components/TechStackModal.vue';
 import VulnerabilityModal from '@/components/VulnerabilityModal.vue';
@@ -259,7 +261,7 @@ const handleImportJson = async (event) => {
             category: 'web', // Puoi migliorare la categorizzazione se vuoi
           };
 
-          await subdomainsStore.addTechStack(route.params.id, tech);
+          await techStore.addTechStack(route.params.id, tech);
         }
       }
     }
@@ -273,6 +275,8 @@ const handleImportJson = async (event) => {
 
 const route = useRoute();
 const subdomainsStore = useSubdomainsStore();
+const techStore = useSubdomainTechsStore();
+const vulnStore = useSubdomainVulnsStore();
 
 const showTechStackModal = ref(false);
 const selectedTech = ref(null);
@@ -283,8 +287,8 @@ const severityFilter = ref('');
 const statusFilter = ref('');
 
 const subdomain = computed(() => subdomainsStore.currentSubdomain);
-const techStacks = computed(() => subdomainsStore.techStacks);
-const vulnerabilities = computed(() => subdomainsStore.vulnerabilities);
+const techStacks = computed(() => techStore.techStacks);
+const vulnerabilities = computed(() => vulnStore.vulnerabilities);
 
 const filteredVulnerabilities = computed(() => {
   let filtered = vulnerabilities.value;
@@ -311,6 +315,11 @@ const highCount = computed(() =>
 onMounted(async () => {
   try {
     await subdomainsStore.fetchSubdomain(route.params.id);
+    // fetch techs and vulns for this subdomain
+    await Promise.all([
+      techStore.fetchTechStacks(route.params.id),
+      vulnStore.fetchVulnerabilities(route.params.id)
+    ]);
   } catch (error) {
     console.error('Errore caricamento sottodominio:', error);
   } finally {
@@ -321,9 +330,9 @@ onMounted(async () => {
 const handleTechStackSubmit = async (techData) => {
   try {
     if (selectedTech.value) {
-      await subdomainsStore.updateTechStack(selectedTech.value._id, techData);
+      await techStore.updateTechStack(selectedTech.value._id, techData);
     } else {
-      await subdomainsStore.addTechStack(route.params.id, techData);
+      await techStore.addTechStack(route.params.id, techData);
     }
   } catch (error) {
     console.error('Errore aggiunta/modifica tecnologia:', error);
@@ -347,7 +356,7 @@ const deleteTech = async (techId) => {
   if (!confirm('Sei sicuro di voler eliminare questa tecnologia?')) return;
   
   try {
-    await subdomainsStore.deleteTechStack(techId);
+    await techStore.deleteTechStack(techId);
   } catch (error) {
     console.error('Errore eliminazione tecnologia:', error);
     alert('Errore nell\'eliminazione della tecnologia');
@@ -367,9 +376,9 @@ const closeVulnModal = () => {
 const handleVulnSubmit = async (vulnData) => {
   try {
     if (selectedVulnerability.value) {
-      await subdomainsStore.updateVulnerability(selectedVulnerability.value._id, vulnData);
+      await vulnStore.updateVulnerability(selectedVulnerability.value._id, vulnData);
     } else {
-      await subdomainsStore.addVulnerability(route.params.id, vulnData);
+      await vulnStore.addVulnerability(route.params.id, vulnData);
     }
   } catch (error) {
     console.error('Errore salvataggio vulnerabilità:', error);
@@ -381,7 +390,7 @@ const deleteVuln = async (vulnId) => {
   if (!confirm('Sei sicuro di voler eliminare questa vulnerabilità?')) return;
   
   try {
-    await subdomainsStore.deleteVulnerability(vulnId);
+    await vulnStore.deleteVulnerability(vulnId);
   } catch (error) {
     console.error('Errore eliminazione vulnerabilità:', error);
     alert('Errore nell\'eliminazione della vulnerabilità');

@@ -1,12 +1,10 @@
 import { defineStore } from 'pinia';
-import { subdomainsAPI, techStacksAPI, vulnerabilitiesAPI } from '@/services/api';
+import { subdomainsAPI } from '@/services/api';
 
 export const useSubdomainsStore = defineStore('subdomains', {
   state: () => ({
     subdomains: [],
     currentSubdomain: null,
-    techStacks: [],
-    vulnerabilities: [],
     loading: false,
     error: null
   }),
@@ -26,14 +24,32 @@ export const useSubdomainsStore = defineStore('subdomains', {
       }
     },
 
+    // Fetch subdomains for multiple projects and merge into store
+    async fetchAllSubdomains(projectIds = []) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const promises = projectIds.map(id => subdomainsAPI.getByProject(id).then(r => r.data.data).catch(e => {
+          console.warn('Errore fetch subdomains for project', id, e);
+          return [];
+        }));
+        const results = await Promise.all(promises);
+        // flatten and set
+        this.subdomains = results.flat();
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Errore nel caricamento dei sottodomini';
+        console.error('Errore fetchAllSubdomains:', error);
+      } finally {
+        this.loading = false;
+      }
+    },
+
     async fetchSubdomain(id) {
       this.loading = true;
       this.error = null;
       try {
         const response = await subdomainsAPI.getById(id);
         this.currentSubdomain = response.data.data;
-        this.techStacks = response.data.data.techStack || [];
-        this.vulnerabilities = response.data.data.vulnerabilities || [];
         return response.data.data;
       } catch (error) {
         this.error = error.response?.data?.error || 'Errore nel caricamento del sottodominio';
@@ -87,62 +103,6 @@ export const useSubdomainsStore = defineStore('subdomains', {
         throw error;
       } finally {
         this.loading = false;
-      }
-    },
-
-    async addTechStack(subdomainId, techData) {
-      try {
-        const response = await techStacksAPI.create(subdomainId, techData);
-        this.techStacks.push(response.data.data);
-        return response.data.data;
-      } catch (error) {
-        this.error = error.response?.data?.error || 'Errore nell\'aggiunta della tecnologia';
-        throw error;
-      }
-    },
-
-    async deleteTechStack(id) {
-      try {
-        await techStacksAPI.delete(id);
-        this.techStacks = this.techStacks.filter(t => t._id !== id);
-      } catch (error) {
-        this.error = error.response?.data?.error || 'Errore nell\'eliminazione della tecnologia';
-        throw error;
-      }
-    },
-
-    async addVulnerability(subdomainId, vulnData) {
-      try {
-        const response = await vulnerabilitiesAPI.create(subdomainId, vulnData);
-        this.vulnerabilities.push(response.data.data);
-        return response.data.data;
-      } catch (error) {
-        this.error = error.response?.data?.error || 'Errore nell\'aggiunta della vulnerabilità';
-        throw error;
-      }
-    },
-
-    async updateVulnerability(id, vulnData) {
-      try {
-        const response = await vulnerabilitiesAPI.update(id, vulnData);
-        const index = this.vulnerabilities.findIndex(v => v._id === id);
-        if (index !== -1) {
-          this.vulnerabilities[index] = response.data.data;
-        }
-        return response.data.data;
-      } catch (error) {
-        this.error = error.response?.data?.error || 'Errore nell\'aggiornamento della vulnerabilità';
-        throw error;
-      }
-    },
-
-    async deleteVulnerability(id) {
-      try {
-        await vulnerabilitiesAPI.delete(id);
-        this.vulnerabilities = this.vulnerabilities.filter(v => v._id !== id);
-      } catch (error) {
-        this.error = error.response?.data?.error || 'Errore nell\'eliminazione della vulnerabilità';
-        throw error;
       }
     }
   }

@@ -105,12 +105,16 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useProjectsStore } from '@/stores/projects';
 import { useSubdomainsStore } from '@/stores/subdomains';
+import { useSubdomainTechsStore } from '@/stores/subdomainTechs';
+import { useSubdomainVulnsStore } from '@/stores/subdomainVulns';
 import SubdomainModal from '@/components/SubdomainModal.vue';
 
 const route = useRoute();
 const router = useRouter();
 const projectsStore = useProjectsStore();
 const subdomainsStore = useSubdomainsStore();
+const techStore = useSubdomainTechsStore();
+const vulnStore = useSubdomainVulnsStore();
 
 const showSubdomainModal = ref(false);
 const loading = ref(true);
@@ -211,7 +215,7 @@ const handleImportJson = async (event) => {
       // Aggiunta dello stack tecnologico (se presente)
       if (Array.isArray(entry.stack)) {
         for (const tech of entry.stack) {
-          await subdomainsStore.addTechStack(subId, { technology: tech });
+          await techStore.addTechStack(subId, { technology: tech });
         }
       }
 
@@ -231,7 +235,7 @@ const handleImportJson = async (event) => {
             impact: '',
             timestamp: vuln.timestamp || ''
           };
-          await subdomainsStore.addVulnerability(subId, mapped);
+          await vulnStore.addVulnerability(subId, mapped);
         }
       }
 
